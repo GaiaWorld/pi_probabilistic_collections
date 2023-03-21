@@ -1,0 +1,59 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+stages:
+  - build
+  - lint
+  - deploy
+
+cache:
+  paths:
+    - .cargo/
+    - target/
+
+stable:
+  image: "rust:latest"
+  stage: build
+  script:
+  - cargo install cargo-tarpaulin
+  - cargo build --verbose --all-targets --all-features
+  - cargo tarpaulin --verbose --all-features
+
+beta:
+  image: "instrumentisto/rust:beta"
+  stage: build
+  script:
+  - cargo build --verbose --all-targets --all-features
+  - cargo test --verbose --all-targets --all-features
+
+nightly:
+  image: "rustlang/rust:nightly"
+  stage: build
+  script:
+  - cargo build --verbose --all-targets --all-features
+  - cargo test --verbose --all-targets --all-features
+  - cargo update -Zminimal-versions
+  - cargo check --all-targets --all-features
+  allow_failure: true
+
+lint:
+  image: "rust:latest"
+  stage: lint
+  script:
+  - rustup component add rustfmt
+  - rustup component add clippy
+  - cargo clippy --verbose --all-targets --all-features
+  - cargo fmt --verbose --all -- --verbose --check
+
+pages:
+  image: "rust:latest"
+  stage: deploy
+  script:
+  - cargo doc --all --no-deps --verbose
+  - echo "<meta http-equiv=refresh content=0;url=probabilistic_collections/index.html>" >target/doc/index.html
+  - mv target/doc public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
